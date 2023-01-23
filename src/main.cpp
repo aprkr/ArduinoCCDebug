@@ -6,30 +6,25 @@
 #define enableMOSI (*portModeRegister(digitalPinToPort(MOSI)) |= digitalPinToBitMask(MOSI)) // Same as DDRB |= (1<<DDB3)
 #define readMISO (*portInputRegister(digitalPinToPort(MISO)) & digitalPinToBitMask(MISO))
 
-void startDebug() { // All these waits are unnecessary on the Uno, but harmless
+void startDebug() { // 2 falling-edges on clock pin when reset is low, then set reset high
   pinMode(SCK, OUTPUT);
   pinMode(PIN_RESET, OUTPUT);
-  digitalWrite(SCK, LOW);
-  digitalWrite(PIN_RESET,  HIGH);
-  digitalWrite(PIN_RESET, LOW);
-  waitCCcycle;
-  waitCCcycle;
-  waitCCcycle;
-  digitalWrite(SCK, HIGH);
-  waitCCcycle;
-  digitalWrite(SCK, LOW);
-  waitCCcycle;
-  digitalWrite(SCK, HIGH);
-  waitCCcycle;
-  digitalWrite(SCK, LOW);
-  waitCCcycle;
-  waitCCcycle;
   digitalWrite(PIN_RESET, HIGH);
-  waitCCcycle;
-  waitCCcycle;
+  digitalWrite(PIN_RESET, LOW);
+  delayMicroseconds(1); // All these waits are excessive, but harmless
+  digitalWrite(SCK, HIGH);
+  delayMicroseconds(1);
+  digitalWrite(SCK, LOW);
+  delayMicroseconds(1);
+  digitalWrite(SCK, HIGH);
+  delayMicroseconds(1);
+  digitalWrite(SCK, LOW);
+  delayMicroseconds(1);
+  digitalWrite(PIN_RESET, HIGH);
+  delayMicroseconds(1);
   SPI.begin();
   SPI.beginTransaction(SPISettings(SPI_MHz*1000000,MSBFIRST,SPI_MODE1));
-  disableMOSI;
+  disableMOSI; // Keep MOSI disabled all the time unless sending data to CC
 }
 
 void DDWait() { // Sometimes need to wait for CC to be ready to send data (Figure 3-4)
@@ -160,7 +155,7 @@ void writeChip() {
 
       // Arm DMA
       sendInstr3(0x75, DMAARM, 0b10); // MOV direct, #data
-      waitCCcycle; // DMA channel arming takes 9 clocks
+      // DMA channel arming takes 9 clocks, however sending data takes more than 9 clocks anyways so no need to wait
       enableMOSI;
       SPI.transfer(BURST_WRITE | 0b010);
       SPI.transfer(0);
@@ -192,7 +187,6 @@ void writeChip() {
       sendInstr1(0xF0); // MOVX @DPTR, A
       // Arm DMA
       sendInstr3(0x75, DMAARM, 0b10); // MOV direct, #data
-      waitCCcycle; // DMA channel arming takes 9 clocks
       // Set FCTL.WRITE to 1
       sendInstr3(0x90, 0x6270); // MOV DPTR, #data16
       sendInstr2(0x74, 0b00000010); // MOV A, #data

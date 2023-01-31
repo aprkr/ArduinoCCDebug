@@ -2,11 +2,11 @@
 #include <config.h>
 #include <SPI.h>
 #include <cc254x.h>
-#define disableMOSI (*portModeRegister(digitalPinToPort(MOSI)) &= ~digitalPinToBitMask(MOSI)) // Disable MOSI pin to not interfere with CC output
-#define enableMOSI (*portModeRegister(digitalPinToPort(MOSI)) |= digitalPinToBitMask(MOSI)) // Same as DDRB |= (1<<DDB3)
-#define readMISO (*portInputRegister(digitalPinToPort(MISO)) & digitalPinToBitMask(MISO))
 
 void startDebug() { // 2 falling-edges on clock pin when reset is low, then set reset high
+  #ifdef DD_WAIT_PIN
+    pinMode(DD_WAIT_PIN, INPUT);
+  #endif
   pinMode(SCK, OUTPUT);
   pinMode(PIN_RESET, OUTPUT);
   digitalWrite(PIN_RESET, HIGH);
@@ -207,50 +207,53 @@ void setup() {
 void loop() {
   if (Serial.available()) {
     byte command = Serial.read();
-    switch (command)
-    {
-    case GET_CHIP_ID_SER: {
-      getChipID();
-      break;
-    }
-    case XDATAREAD_SER: {
-      while (Serial.available() < 4) {}
-      uint16_t addr = Serial.read() << 8;
-      addr |= Serial.read();
-      uint16_t len = Serial.read() << 8;
-      len |= Serial.read();
-      xDataRead(addr, len);
-      break;
-    }
-    case WRITE_CHIP_SER: {
-      writeChip();
-      break;
-    }
-    case RD_CONFIG_SER: {
-      sendToCC(RD_CONFIG);
-      DDWait();
-      Serial.write(readCC());
-      break;
-    }
-    case READ_STATUS_SER: {
-      sendToCC(READ_STATUS);
-      DDWait();
-      Serial.write(readCC());
-      break;
-    }
-    case STEP_SER: {
-      sendToCC(GET_PC);
-      DDWait();
-      Serial.write(readCC());
-      Serial.write(readCC());
-      sendToCC(STEP_INSTR);
-      DDWait();
-      Serial.write(readCC());
-      break;
-    }
-    
-    default:
-      break;
+    switch (command) {
+      case DETECT_SER: {
+        Serial.write(DETECT_SER_RESPONSE);
+        break;
+      }
+      case GET_CHIP_ID_SER: {
+        getChipID();
+        break;
+      }
+      case XDATAREAD_SER: {
+        while (Serial.available() < 4) {}
+        uint16_t addr = Serial.read() << 8;
+        addr |= Serial.read();
+        uint16_t len = Serial.read() << 8;
+        len |= Serial.read();
+        xDataRead(addr, len);
+        break;
+      }
+      case WRITE_CHIP_SER: {
+        writeChip();
+        break;
+      }
+      case RD_CONFIG_SER: {
+        sendToCC(RD_CONFIG);
+        DDWait();
+        Serial.write(readCC());
+        break;
+      }
+      case READ_STATUS_SER: {
+        sendToCC(READ_STATUS);
+        DDWait();
+        Serial.write(readCC());
+        break;
+      }
+      case STEP_SER: {
+        sendToCC(GET_PC);
+        DDWait();
+        Serial.write(readCC());
+        Serial.write(readCC());
+        sendToCC(STEP_INSTR);
+        DDWait();
+        Serial.write(readCC());
+        break;
+      }
+      
+      default:
+        break;
     }
   }
 }

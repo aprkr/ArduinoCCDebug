@@ -11,6 +11,8 @@ WRITE_CHIP_SER = 3
 RD_CONFIG_SER = 4
 READ_STATUS_SER = 5
 STEP_SER = 6
+DETECT_SER = 7
+DETECT_SER_RESPONSE = 0xAB # I just chose some arbitrary number
 
 ARD_BUFF_SIZE = 32
 NUM_PAGES = 32
@@ -21,15 +23,15 @@ BAUD_RATE = 115200
 
 def connectArduino():
     comport = None
-    search = 'USB VID:PID=2341:0043'.lower()
     for port in list_ports.comports():
-        if search in port[2].lower():
-            comport = port[0]
-        break
+        comport = port[0]
+        ser = serial.Serial(port=comport, baudrate=BAUD_RATE, timeout=2)
+        sendByte(ser, DETECT_SER)
+        response = ser.read(1)
+        if response == DETECT_SER_RESPONSE:
+            break
     if not comport:
         raise Exception('Failed to find Arduino COM port.')
-    ser = serial.Serial(port=comport, baudrate=BAUD_RATE)
-    time.sleep(2)
     return ser
 
 def sendByte(ser: Serial, byte):
